@@ -1,0 +1,249 @@
+"""
+Creates the master Jupyter Notebook for WorkPulse.
+"""
+import json
+import os
+
+notebook_dir = r"c:\Users\Niviya Albert\OneDrive\Pictures\Documents\Desktop\WorkPulse\notebooks"
+os.makedirs(notebook_dir, exist_ok=True)
+
+cells = [
+    {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "# WorkPulse – Unemployment Trends & Economic Insights\n",
+            "### CodeAlpha Data Science Internship Task 2\n",
+            "**Author:** Niviya Albert | **Role:** Data Science Intern\n",
+            "\n",
+            "---\n",
+            "## 🎯 Project Overview & Business Problem\n",
+            "Unemployment is one of the most critical macroeconomic indicators reflecting economic vitality, labor demand, and social well-being. The COVID-19 pandemic and subsequent national lockdowns in 2020 induced sudden, severe economic disruptions.\n",
+            "\n",
+            "### Objectives:\n",
+            "1. **Baseline Assessment:** Establish pre-COVID unemployment benchmarks (May 2019 – Feb 2020).\n",
+            "2. **COVID-19 Shock Impact:** Measure peak unemployment and job loss during strict lockdown (April–May 2020).\n",
+            "3. **Rural vs. Urban Dynamics:** Compare the resilience and recovery velocity between rural agricultural and urban service/industrial economies.\n",
+            "4. **Geographic & Zonal Disparities:** Identify vulnerable states requiring targeted labor and welfare policies.\n",
+            "5. **Policy Recommendations:** Provide data-backed actionable interventions for economic stability."
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Step 1: Environment Setup & Library Imports\n",
+            "import os\n",
+            "import pandas as pd\n",
+            "import numpy as np\n",
+            "import matplotlib.pyplot as plt\n",
+            "import seaborn as sns\n",
+            "\n",
+            "# Set modern aesthetics\n",
+            "sns.set_theme(style='whitegrid', font_scale=1.05)\n",
+            "plt.rcParams['font.sans-serif'] = 'DejaVu Sans'\n",
+            "plt.rcParams['figure.dpi'] = 150\n",
+            "plt.rcParams['figure.figsize'] = (12, 6)\n",
+            "\n",
+            "print('Environment initialized successfully.')"
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Step 2: Load Preprocessed Datasets\n",
+            "df_primary = pd.read_csv('../data/cleaned_unemployment_data.csv')\n",
+            "df_primary['Date'] = pd.to_datetime(df_primary['Date'])\n",
+            "\n",
+            "df_regional = pd.read_csv('../data/cleaned_unemployment_regional.csv')\n",
+            "df_regional['Date'] = pd.to_datetime(df_regional['Date'])\n",
+            "\n",
+            "print(f'Primary Dataset Shape: {df_primary.shape} | Dates: {df_primary[\"Date\"].min().date()} to {df_primary[\"Date\"].max().date()}')\n",
+            "print(f'Regional Dataset Shape: {df_regional.shape} | Dates: {df_regional[\"Date\"].min().date()} to {df_regional[\"Date\"].max().date()}')\n",
+            "df_primary.head()"
+        ]
+    },
+    {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 📈 Section 1: National Unemployment Trend Over Time\n",
+            "Let us examine how national unemployment evolved from pre-COVID normal (May 2019) through the lockdown spike (April–May 2020) and subsequent reopening."
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Monthly Aggregations\n",
+            "monthly_national = df_primary.groupby('Date')['Unemployment_Rate_Pct'].agg(['mean', 'median', 'std', 'min', 'max']).reset_index()\n",
+            "monthly_rural = df_primary[df_primary['Area_Type'] == 'Rural'].groupby('Date')['Unemployment_Rate_Pct'].mean().reset_index()\n",
+            "monthly_urban = df_primary[df_primary['Area_Type'] == 'Urban'].groupby('Date')['Unemployment_Rate_Pct'].mean().reset_index()\n",
+            "\n",
+            "fig, ax = plt.subplots(figsize=(13, 6))\n",
+            "ax.plot(monthly_national['Date'], monthly_national['mean'], marker='o', color='#0F172A', linewidth=3, label='National Average')\n",
+            "ax.plot(monthly_urban['Date'], monthly_urban['Unemployment_Rate_Pct'], marker='s', linestyle='--', color='#E11D48', linewidth=2, label='Urban Average')\n",
+            "ax.plot(monthly_rural['Date'], monthly_rural['Unemployment_Rate_Pct'], marker='^', linestyle='--', color='#16A34A', linewidth=2, label='Rural Average')\n",
+            "\n",
+            "# Shading lockdown shock\n",
+            "ax.axvspan(pd.Timestamp('2020-03-24'), pd.Timestamp('2020-05-31'), color='#FEE2E2', alpha=0.6, label='Strict Lockdown Phase')\n",
+            "\n",
+            "ax.set_title('National Unemployment Trajectory: Rural vs. Urban (May 2019 – June 2020)', fontsize=14, fontweight='bold', pad=15)\n",
+            "ax.set_xlabel('Timeline', fontweight='bold')\n",
+            "ax.set_ylabel('Unemployment Rate (%)', fontweight='bold')\n",
+            "ax.legend(frameon=True, facecolor='white', edgecolor='#CBD5E1')\n",
+            "plt.tight_layout()\n",
+            "plt.show()"
+        ]
+    },
+    {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 📍 Section 2: Regional & State-Wise Analysis\n",
+            "Which states experienced the highest chronic unemployment, and which states maintained resilient employment?"
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "state_ranking = df_primary.groupby('State')['Unemployment_Rate_Pct'].mean().sort_values(ascending=False)\n",
+            "top_10 = state_ranking.head(10)\n",
+            "bottom_10 = state_ranking.tail(10).sort_values(ascending=True)\n",
+            "\n",
+            "fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))\n",
+            "sns.barplot(x=top_10.values, y=top_10.index, ax=ax1, hue=top_10.index, palette='Reds_r', legend=False)\n",
+            "ax1.set_title('Top 10 States with Highest Avg Unemployment (%)', fontweight='bold')\n",
+            "ax1.set_xlabel('Average Unemployment Rate (%)')\n",
+            "for p in ax1.patches:\n",
+            "    ax1.annotate(f'{p.get_width():.1f}%', (p.get_width() + 0.5, p.get_y() + p.get_height() / 2), ha='left', va='center', fontsize=9, fontweight='bold')\n",
+            "\n",
+            "sns.barplot(x=bottom_10.values, y=bottom_10.index, ax=ax2, hue=bottom_10.index, palette='Greens_d', legend=False)\n",
+            "ax2.set_title('Top 10 States with Lowest Avg Unemployment (%)', fontweight='bold')\n",
+            "ax2.set_xlabel('Average Unemployment Rate (%)')\n",
+            "for p in ax2.patches:\n",
+            "    ax2.annotate(f'{p.get_width():.1f}%', (p.get_width() + 0.3, p.get_y() + p.get_height() / 2), ha='left', va='center', fontsize=9, fontweight='bold')\n",
+            "\n",
+            "plt.tight_layout()\n",
+            "plt.show()"
+        ]
+    },
+    {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🦠 Section 3: Dedicated COVID-19 Impact & Recovery Analysis\n",
+            "Let us quantitatively compare the Pre-COVID baseline vs. COVID Lockdown vs. Reopening/Recovery periods."
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Categorize periods\n",
+            "def categorize_period(date):\n",
+            "    if date < pd.Timestamp('2020-03-01'):\n",
+            "        return 'Pre-COVID (May 2019 - Feb 2020)'\n",
+            "    elif date <= pd.Timestamp('2020-05-31'):\n",
+            "        return 'Lockdown Shock (Mar - May 2020)'\n",
+            "    else:\n",
+            "        return 'Reopening / Recovery (Jun 2020+)'\n",
+            "\n",
+            "df_primary['COVID_Period'] = df_primary['Date'].apply(categorize_period)\n",
+            "\n",
+            "covid_summary = df_primary.groupby('COVID_Period')['Unemployment_Rate_Pct'].agg(['count', 'mean', 'std', 'min', 'max']).reset_index()\n",
+            "print('=== COVID PERIOD COMPARISON ===')\n",
+            "display(covid_summary)\n",
+            "\n",
+            "# Period comparison boxplot\n",
+            "plt.figure(figsize=(10, 6))\n",
+            "sns.boxplot(data=df_primary, x='COVID_Period', y='Unemployment_Rate_Pct', palette='Set2')\n",
+            "plt.title('Unemployment Rate Distribution by COVID Period Phase', fontweight='bold', pad=15)\n",
+            "plt.ylabel('Unemployment Rate (%)', fontweight='bold')\n",
+            "plt.xlabel('')\n",
+            "plt.tight_layout()\n",
+            "plt.show()"
+        ]
+    },
+    {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🔥 Section 4: State-Wise Monthly Heatmap\n",
+            "Visualizing the exact month-by-month unemployment intensity across every Indian state."
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "pivot_df = df_primary.pivot_table(index='State', columns='Year_Month', values='Unemployment_Rate_Pct', aggfunc='mean')\n",
+            "pivot_df = pivot_df.loc[state_ranking.index]\n",
+            "\n",
+            "plt.figure(figsize=(14, 10))\n",
+            "sns.heatmap(pivot_df, cmap='YlOrRd', annot=True, fmt='.1f', linewidths=0.5, cbar_kws={'label': 'Unemployment Rate (%)'})\n",
+            "plt.title('State-Wise Monthly Unemployment Rate Heatmap (2019 - 2020)', fontsize=14, fontweight='bold', pad=15)\n",
+            "plt.xlabel('Year-Month', fontweight='bold')\n",
+            "plt.ylabel('State', fontweight='bold')\n",
+            "plt.tight_layout()\n",
+            "plt.show()"
+        ]
+    },
+    {
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## 🧭 Section 5: Macro-Zonal Analysis & Extended Recovery (Jan 2020 – Oct 2020)"
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "zone_monthly = df_regional.groupby(['Year_Month', 'Zone'])['Unemployment_Rate_Pct'].mean().unstack()\n",
+            "\n",
+            "plt.figure(figsize=(12, 6))\n",
+            "for zone in zone_monthly.columns:\n",
+            "    plt.plot(zone_monthly.index, zone_monthly[zone], marker='o', linewidth=2.5, label=zone)\n",
+            "\n",
+            "plt.title('Zonal Unemployment Trajectory & Extended Recovery (Jan 2020 – Oct 2020)', fontsize=14, fontweight='bold', pad=15)\n",
+            "plt.xlabel('Year-Month', fontweight='bold')\n",
+            "plt.ylabel('Unemployment Rate (%)', fontweight='bold')\n",
+            "plt.legend(title='Macro-Zone', frameon=True)\n",
+            "plt.xticks(rotation=45)\n",
+            "plt.tight_layout()\n",
+            "plt.show()"
+        ]
+    }
+]
+
+nb_content = {
+    "cells": cells,
+    "metadata": {
+        "language_info": {"name": "python", "version": "3.11"}
+    },
+    "nbformat": 4,
+    "nbformat_minor": 4
+}
+
+target_path = os.path.join(notebook_dir, "unemployment_analysis.ipynb")
+with open(target_path, "w", encoding="utf-8") as f:
+    json.dump(nb_content, f, indent=2)
+
+print(f"Generated master notebook at: {target_path}")
